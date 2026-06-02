@@ -430,6 +430,103 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
   box-shadow: 0 4px 16px rgba(0,0,0,0.2);
 }
 
+/* ---- Seat Management ---- */
+.table-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.table-card {
+  background: #ffffff;
+  border: 1px solid #e0e5db;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.table-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.table-card-name {
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: #2e7d44;
+}
+
+.table-card-count {
+  font-size: 11px;
+  color: #9aab9c;
+}
+
+.seat-list { display: flex; flex-direction: column; gap: 4px; }
+
+.seat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  background: #f6f7f4;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.seat-row:active { background: #e0e5db; }
+
+.seat-row.empty { color: #9aab9c; }
+
+.seat-label {
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-size: 13px;
+  color: #2e7d44;
+  min-width: 30px;
+  flex-shrink: 0;
+}
+
+.seat-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.lock-icon { font-size: 11px; flex-shrink: 0; }
+
+.break-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  font-size: 11px;
+  border-radius: 6px;
+  background: #fdf3e8;
+  color: #a06010;
+  border: 1px solid #f5c990;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.break-btn:active { background: #f5c990; }
+
+/* Preview list */
+.preview-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+
+.preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f6f7f4;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.preview-from { font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-arrow { color: #9aab9c; flex-shrink: 0; }
+.preview-to { font-family: 'Bebas Neue', 'Inter', sans-serif; font-size: 14px; color: #2e7d44; flex-shrink: 0; letter-spacing: 1px; }
+
 .toast.show { transform: translateX(-50%) translateY(0); }
 </style>
 </head>
@@ -458,6 +555,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
   <!-- Tabs -->
   <div class="tabs">
     <div class="tab" :class="{ active: currentTab === 'players' }" @click="currentTab = 'players'">Players</div>
+    <div class="tab" :class="{ active: currentTab === 'seats' }" @click="currentTab = 'seats'">Seats</div>
     <div class="tab" :class="{ active: currentTab === 'settings' }" @click="currentTab = 'settings'">Settings</div>
   </div>
 
@@ -527,8 +625,67 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
     </div>
   </div>
 
+  <!-- ===== Seats Tab ===== -->
+  <div class="content" v-show="currentTab === 'seats'">
+
+    <!-- Assign button -->
+    <div style="margin-bottom:12px;">
+      <button class="btn btn-ghost btn-sm" @click="requestAssignSeats" style="font-size:11px; color:#627564;">
+        Assign Seats
+      </button>
+    </div>
+
+    <!-- No tables -->
+    <div v-if="tables.length === 0" class="empty-state">
+      <div class="empty-icon"><div class="empty-icon-inner"></div></div>
+      <p>No tables set up. Go to Settings to add tables.</p>
+    </div>
+
+    <!-- Table grid -->
+    <div v-else class="table-grid">
+      <div v-for="table in tables" :key="table.id" class="table-card">
+        <div class="table-card-header">
+          <div class="table-card-name">TABLE {{ table.label }}</div>
+          <div class="table-card-count">{{ seatedCount(table.id) }}/9</div>
+        </div>
+
+        <div class="seat-list">
+          <div
+            v-for="seat in 9"
+            :key="seat"
+            class="seat-row"
+            :class="{ empty: !getPlayerAtSeat(table.id, seat) }"
+            @click="openSeatModal(table.id, seat)"
+          >
+            <div class="seat-label">{{ table.label }}-{{ seat }}</div>
+            <div class="seat-name">
+              <span v-if="getPlayerAtSeat(table.id, seat)">{{ getPlayerAtSeat(table.id, seat).name }}</span>
+              <span v-else style="color:#c8d4c9;">—</span>
+            </div>
+            <div class="lock-icon" v-if="getPlayerAtSeat(table.id, seat) && getPlayerAtSeat(table.id, seat).seatLocked">🔒</div>
+          </div>
+        </div>
+
+        <button class="break-btn" @click="requestBreakTable(table)">Break Table {{ table.label }}</button>
+      </div>
+    </div>
+
+  </div>
+
   <!-- ===== Settings Tab ===== -->
   <div class="content" v-show="currentTab === 'settings'">
+
+    <!-- Table Setup -->
+    <div class="card">
+      <div class="card-title">Tables</div>
+      <div class="input-row">
+        <input type="number" v-model.number="tableCountInput" placeholder="Number of tables" min="1" max="8" style="width:auto; flex:1;">
+        <button class="btn btn-green" @click="setTables">Set</button>
+      </div>
+      <p v-if="tables.length > 0" style="font-size:12px; color:#627564;">
+        {{ tables.length }} table(s): {{ tables.map(t => 'TABLE ' + t.label).join(', ') }}
+      </p>
+    </div>
 
     <!-- Add Player -->
     <div class="card">
@@ -644,6 +801,113 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
     </div>
   </div>
 
+  <!-- ===== Seat Modal ===== -->
+  <div class="modal-overlay" :class="{ open: seatModalOpen }" @click.self="closeSeatModal">
+    <div class="modal" v-if="seatModalData">
+      <div class="modal-handle"></div>
+      <div class="modal-player-name">{{ seatModalData.tableLabel }}-{{ seatModalData.seat }}</div>
+      <div class="modal-player-sub" style="margin-bottom:14px;">
+        <span v-if="seatModalData.player">{{ seatModalData.player.name }}</span>
+        <span v-else>Empty seat</span>
+      </div>
+
+      <!-- If occupied: actions for this player -->
+      <template v-if="seatModalData.player">
+        <!-- Lock toggle -->
+        <div class="ra-control" style="margin-bottom:8px; cursor:pointer;" @click="toggleLock(seatModalData.player)">
+          <div>
+            <div class="ra-control-label" style="color: seatModalData.player.seatLocked ? '#a06010' : '#2e7d44'">
+              {{ seatModalData.player.seatLocked ? '🔒 Locked' : '🔓 Unlocked' }}
+            </div>
+            <div class="ra-control-sub">Tap to toggle seat lock</div>
+          </div>
+        </div>
+        <hr>
+        <!-- Move to another table -->
+        <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">Move to Table</div>
+        <div class="btn-row" style="flex-wrap:wrap;">
+          <button
+            v-for="t in tables"
+            :key="t.id"
+            class="btn btn-ghost btn-sm"
+            :disabled="t.id === seatModalData.tableId"
+            :style="t.id === seatModalData.tableId ? 'opacity:0.4' : ''"
+            @click="moveToTableRandom(seatModalData.player, t.id)"
+          >{{ t.label }}</button>
+        </div>
+        <hr>
+        <!-- Assign to specific seat -->
+        <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">Assign to Specific Seat</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+          <select v-model="seatMoveTarget.tableId" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:8px; font-size:13px; color:#1a2a1c; outline:none;">
+            <option value="">Table</option>
+            <option v-for="t in tables" :key="t.id" :value="t.id">{{ t.label }}</option>
+          </select>
+          <select v-model="seatMoveTarget.seat" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:8px; font-size:13px; color:#1a2a1c; outline:none;">
+            <option value="">Seat</option>
+            <option v-for="s in 9" :key="s" :value="s" :disabled="isSeatOccupied(seatMoveTarget.tableId, s, seatModalData.player.id)">{{ s }}</option>
+          </select>
+        </div>
+        <button class="btn btn-green btn-full" @click="moveToSpecificSeat(seatModalData.player)" style="margin-bottom:8px;">Assign</button>
+        <hr>
+        <!-- Remove from seat -->
+        <button class="btn btn-ghost btn-full" @click="removeFromSeat(seatModalData.player)" style="margin-bottom:8px; color:#b53a2e;">Remove from Seat</button>
+      </template>
+
+      <!-- If empty: assign a player -->
+      <template v-else>
+        <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">Assign Player</div>
+        <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; margin-bottom:8px;">
+          <button
+            v-for="p in unseatedActivePlayers"
+            :key="p.id"
+            class="btn btn-ghost btn-full"
+            style="text-align:left; justify-content:flex-start;"
+            @click="assignToSeat(p, seatModalData.tableId, seatModalData.seat)"
+          >{{ p.name }}</button>
+          <p v-if="unseatedActivePlayers.length === 0" style="font-size:13px; color:#9aab9c; padding:8px 0;">No unseated players.</p>
+        </div>
+      </template>
+
+      <button class="btn btn-ghost btn-full" @click="closeSeatModal">Close</button>
+    </div>
+  </div>
+
+  <!-- ===== Assign Confirm Modal ===== -->
+  <div class="modal-overlay" :class="{ open: assignConfirmOpen }" @click.self="assignConfirmOpen = false">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-player-name">Assign Seats</div>
+      <div class="modal-player-sub" style="margin-bottom:14px;">Current assignments will be reset (locked seats kept). Proceed?</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" @click="assignConfirmOpen = false">Cancel</button>
+        <button class="btn btn-green" @click="doAssignSeats">Assign</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Break Preview Modal ===== -->
+  <div class="modal-overlay" :class="{ open: breakPreviewOpen }" @click.self="breakPreviewOpen = false">
+    <div class="modal" v-if="breakPreviewData">
+      <div class="modal-handle"></div>
+      <div class="modal-player-name">Break TABLE {{ breakPreviewData.tableLabel }}</div>
+      <div class="modal-player-sub" style="margin-bottom:14px;">Players will be moved as follows:</div>
+
+      <div class="preview-list">
+        <div v-for="item in breakPreviewData.moves" :key="item.player.id" class="preview-row">
+          <div class="preview-from">{{ item.player.name }}</div>
+          <div class="preview-arrow">→</div>
+          <div class="preview-to">{{ item.toLabel }}-{{ item.toSeat }}</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" @click="breakPreviewOpen = false">Cancel</button>
+        <button class="btn btn-amber" @click="confirmBreak">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="toast" :class="{ show: toastVisible }">{{ toastMessage }}</div>
 
@@ -675,6 +939,22 @@ createApp({
       newPlayerName: '',
       removePanelOpen: false,
       showResetConfirm: false,
+      tableCountInput: 2,
+
+      // Tables & Seats
+      tables: [],
+
+      // Seat modal
+      seatModalOpen: false,
+      seatModalData: null,
+      seatMoveTarget: { tableId: '', seat: '' },
+
+      // Assign confirm
+      assignConfirmOpen: false,
+
+      // Break preview
+      breakPreviewOpen: false,
+      breakPreviewData: null,
 
       // Toast
       toastMessage: '',
@@ -705,6 +985,11 @@ createApp({
       const busts = this.players.filter(p => p.status === 'bust');
       return busts.length === 0 ? 0 : Math.max(...busts.map(p => p.bustOrder));
     },
+
+    // 未着席のアクティブプレイヤー
+    unseatedActivePlayers() {
+      return this.players.filter(p => p.status !== 'bust' && !p.tableId);
+    },
   },
 
   methods: {
@@ -715,6 +1000,7 @@ createApp({
         localStorage.setItem('poker_v7', JSON.stringify({
           players: this.players,
           nextId: this.nextId,
+          tables: this.tables,
         }));
       } catch(e) {}
     },
@@ -726,6 +1012,7 @@ createApp({
           const d = JSON.parse(saved);
           this.players = d.players || [];
           this.nextId  = d.nextId  || 1;
+          this.tables  = d.tables  || [];
         }
       } catch(e) {}
     },
@@ -830,9 +1117,12 @@ createApp({
     bustPlayer() {
       const p = this.selectedPlayer;
       if (!p) return;
-      // bustOrder = 現在のbust済み人数 + 1（何番目に退場したか）
       p.bustOrder = this.maxBustOrder + 1;
       p.status = 'bust';
+      // シートから自動で外す
+      p.tableId   = null;
+      p.seatNum   = null;
+      p.seatLocked = false;
       const rank = this.bustRank(p);
       this.save();
       this.showToast(`${p.name} busted in ${rank}${this.ordinal(rank)} place.`);
@@ -844,14 +1134,11 @@ createApp({
       const p = this.selectedPlayer;
       if (!p) return;
       const removedOrder = p.bustOrder;
-
-      // このプレイヤーより後にbustした人のbustOrderを-1
       this.players.forEach(q => {
         if (q.status === 'bust' && q.id !== p.id && q.bustOrder > removedOrder) {
           q.bustOrder -= 1;
         }
       });
-
       p.status = 'active';
       p.bustOrder = null;
       this.save();
@@ -859,7 +1146,218 @@ createApp({
       this.closeModal();
     },
 
-    /* ---- Memo ---- */
+    /* ---- Tables Setup ---- */
+    setTables() {
+      const n = Math.min(Math.max(this.tableCountInput || 1, 1), 26);
+      const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      // テーブルを増減（既存は保持）
+      while (this.tables.length < n) {
+        const idx = this.tables.length;
+        this.tables.push({ id: idx + 1, label: labels[idx] });
+      }
+      this.tables = this.tables.slice(0, n);
+      // 削除されたテーブルに座っているプレイヤーのシートを解放
+      const validIds = this.tables.map(t => t.id);
+      this.players.forEach(p => {
+        if (p.tableId && !validIds.includes(p.tableId)) {
+          p.tableId = null; p.seatNum = null;
+        }
+      });
+      this.save();
+      this.showToast(`${n} table(s) set.`);
+    },
+
+    /* ---- Seat helpers ---- */
+    getPlayerAtSeat(tableId, seat) {
+      return this.players.find(p => p.tableId === tableId && p.seatNum === seat && p.status !== 'bust') || null;
+    },
+
+    seatedCount(tableId) {
+      return this.players.filter(p => p.tableId === tableId && p.status !== 'bust').length;
+    },
+
+    isSeatOccupied(tableId, seat, excludeId) {
+      if (!tableId) return false;
+      const tid = typeof tableId === 'string' ? parseInt(tableId) : tableId;
+      return this.players.some(p => p.tableId === tid && p.seatNum === seat && p.id !== excludeId && p.status !== 'bust');
+    },
+
+    // テーブルの空きシートをランダムに1つ返す
+    randomFreeSeat(tableId, excludePlayerId) {
+      const occupied = this.players
+        .filter(p => p.tableId === tableId && p.status !== 'bust' && p.id !== excludePlayerId)
+        .map(p => p.seatNum);
+      const free = [1,2,3,4,5,6,7,8,9].filter(s => !occupied.includes(s));
+      if (!free.length) return null;
+      return free[Math.floor(Math.random() * free.length)];
+    },
+
+    /* ---- Seat Modal ---- */
+    openSeatModal(tableId, seat) {
+      const table = this.tables.find(t => t.id === tableId);
+      const player = this.getPlayerAtSeat(tableId, seat);
+      this.seatModalData = { tableId, tableLabel: table.label, seat, player };
+      this.seatMoveTarget = { tableId: '', seat: '' };
+      this.seatModalOpen = true;
+    },
+
+    closeSeatModal() {
+      this.seatModalOpen = false;
+      this.seatModalData = null;
+    },
+
+    toggleLock(player) {
+      player.seatLocked = !player.seatLocked;
+      // seatModalData.playerを更新
+      if (this.seatModalData) this.seatModalData.player = player;
+      this.save();
+    },
+
+    assignToSeat(player, tableId, seat) {
+      player.tableId = tableId;
+      player.seatNum = seat;
+      this.save();
+      this.closeSeatModal();
+      const tLabel = this.tables.find(t => t.id === tableId)?.label || '';
+      this.showToast(`${player.name} → ${tLabel}-${seat}`);
+    },
+
+    removeFromSeat(player) {
+      player.tableId = null;
+      player.seatNum = null;
+      player.seatLocked = false;
+      this.save();
+      this.closeSeatModal();
+      this.showToast(`${player.name} removed from seat.`);
+    },
+
+    moveToTableRandom(player, tableId) {
+      const seat = this.randomFreeSeat(tableId, player.id);
+      if (seat === null) { this.showToast('No free seats at that table.'); return; }
+      const tLabel = this.tables.find(t => t.id === tableId)?.label || '';
+      player.tableId = tableId;
+      player.seatNum = seat;
+      this.save();
+      this.closeSeatModal();
+      this.showToast(`${player.name} → ${tLabel}-${seat}`);
+    },
+
+    moveToSpecificSeat(player) {
+      const tid = typeof this.seatMoveTarget.tableId === 'string'
+        ? parseInt(this.seatMoveTarget.tableId)
+        : this.seatMoveTarget.tableId;
+      const seat = typeof this.seatMoveTarget.seat === 'string'
+        ? parseInt(this.seatMoveTarget.seat)
+        : this.seatMoveTarget.seat;
+      if (!tid || !seat) { this.showToast('Select table and seat.'); return; }
+      if (this.isSeatOccupied(tid, seat, player.id)) { this.showToast('That seat is taken.'); return; }
+      const tLabel = this.tables.find(t => t.id === tid)?.label || '';
+      player.tableId = tid;
+      player.seatNum = seat;
+      this.save();
+      this.closeSeatModal();
+      this.showToast(`${player.name} → ${tLabel}-${seat}`);
+    },
+
+    /* ---- Assign Seats (initial / redraw) ---- */
+    requestAssignSeats() {
+      const hasAssigned = this.players.some(p => p.status !== 'bust' && p.tableId);
+      if (hasAssigned) {
+        this.assignConfirmOpen = true;
+      } else {
+        this.doAssignSeats();
+      }
+    },
+
+    doAssignSeats() {
+      this.assignConfirmOpen = false;
+      if (!this.tables.length) { this.showToast('Set up tables first.'); return; }
+
+      // ロックされていないプレイヤーのシートをリセット
+      this.players.forEach(p => {
+        if (!p.seatLocked) { p.tableId = null; p.seatNum = null; }
+      });
+
+      // 割り当て対象：アクティブ且つロックなし
+      const targets = this.players
+        .filter(p => p.status !== 'bust' && !p.seatLocked)
+        .sort(() => Math.random() - 0.5); // シャッフル
+
+      // テーブルを均等に埋める（各テーブルの現在の着席数を考慮）
+      targets.forEach(player => {
+        // 最も空いているテーブルを選ぶ
+        const tableWithMostFree = this.tables
+          .map(t => ({
+            t,
+            free: 9 - this.seatedCount(t.id),
+          }))
+          .filter(x => x.free > 0)
+          .sort((a, b) => b.free - a.free)[0];
+
+        if (!tableWithMostFree) return;
+        const seat = this.randomFreeSeat(tableWithMostFree.t.id, player.id);
+        if (seat === null) return;
+        player.tableId = tableWithMostFree.t.id;
+        player.seatNum = seat;
+      });
+
+      this.save();
+      this.showToast('Seats assigned.');
+    },
+
+    /* ---- Break Table ---- */
+    requestBreakTable(table) {
+      const playersAtTable = this.players.filter(p => p.tableId === table.id && p.status !== 'bust');
+      const otherTables = this.tables.filter(t => t.id !== table.id);
+
+      if (!otherTables.length) { this.showToast('No other tables to move to.'); return; }
+
+      // 各プレイヤーの移動先をランダムに決定（プレビュー用）
+      // 空きを均等に埋める
+      const moves = [];
+      const tempSeated = {}; // tableId => [seatNums]
+      otherTables.forEach(t => {
+        tempSeated[t.id] = this.players
+          .filter(p => p.tableId === t.id && p.status !== 'bust')
+          .map(p => p.seatNum);
+      });
+
+      const shuffled = [...playersAtTable].sort(() => Math.random() - 0.5);
+
+      for (const player of shuffled) {
+        // 最も空いているテーブルを選ぶ
+        const target = otherTables
+          .map(t => ({ t, free: 9 - tempSeated[t.id].length }))
+          .filter(x => x.free > 0)
+          .sort((a, b) => b.free - a.free)[0];
+
+        if (!target) { this.showToast('Not enough seats to break table.'); return; }
+
+        const freeSeats = [1,2,3,4,5,6,7,8,9].filter(s => !tempSeated[target.t.id].includes(s));
+        const seat = freeSeats[Math.floor(Math.random() * freeSeats.length)];
+        tempSeated[target.t.id].push(seat);
+        moves.push({ player, toTableId: target.t.id, toLabel: target.t.label, toSeat: seat });
+      }
+
+      this.breakPreviewData = { tableId: table.id, tableLabel: table.label, moves };
+      this.breakPreviewOpen = true;
+    },
+
+    confirmBreak() {
+      if (!this.breakPreviewData) return;
+      this.breakPreviewData.moves.forEach(({ player, toTableId, toSeat }) => {
+        player.tableId = toTableId;
+        player.seatNum = toSeat;
+      });
+      // テーブルを削除
+      this.tables = this.tables.filter(t => t.id !== this.breakPreviewData.tableId);
+      this.breakPreviewOpen = false;
+      this.breakPreviewData = null;
+      this.save();
+      this.showToast('Table broken.');
+    },
+
+    /* ---- Helpers ---- */
     saveMemo() {
       if (!this.selectedPlayer) return;
       this.selectedPlayer.memo = this.memoInput;
