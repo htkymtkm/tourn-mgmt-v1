@@ -518,7 +518,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
             </div>
           </div>
           <div class="player-right">
-            <div class="bust-rank">{{ p.bustPosition }} / {{ p.bustTotal || players.length }}</div>
+            <div class="bust-rank">{{ bustRank(p) }} / {{ players.length }}</div>
             <span class="status-tag tag-bust">Bust</span>
           </div>
         </div>
@@ -590,7 +590,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
       <div class="modal-player-name">{{ selectedPlayer.name }}</div>
       <div class="modal-player-sub">
         <template v-if="selectedPlayer.status === 'bust'">
-          Busted — {{ selectedPlayer.bustPosition }}{{ ordinal(selectedPlayer.bustPosition) }} place / {{ players.length }} players
+          Busted — {{ bustRank(selectedPlayer) }}{{ ordinal(bustRank(selectedPlayer)) }} place / {{ players.length }} players
         </template>
         <template v-else>Active</template>
       </div>
@@ -688,16 +688,22 @@ createApp({
       return this.players.filter(p => p.status !== 'bust');
     },
     bustPlayers() {
+      // bustOrderが大きい = 最後にbust = 上位表示
       return this.players
         .filter(p => p.status === 'bust')
         .slice()
-        .sort((a, b) => a.bustPosition - b.bustPosition);
+        .sort((a, b) => b.bustOrder - a.bustOrder);
     },
     activeCount() {
       return this.players.filter(p => p.status !== 'bust').length;
     },
     entriesCount() {
       return this.players.reduce((sum, p) => sum + 1 + (p.ra || 0), 0);
+    },
+    // 現在のbust済み最大bustOrder
+    maxBustOrder() {
+      const busts = this.players.filter(p => p.status === 'bust');
+      return busts.length === 0 ? 0 : Math.max(...busts.map(p => p.bustOrder));
     },
   },
 
@@ -724,18 +730,24 @@ createApp({
       } catch(e) {}
     },
 
+    /* ---- 順位の計算（表示用） ----
+     * 分母 = players.length（現在の総人数）
+     * 分子 = bustOrderが大きい順に並べて何番目か
+     *   例: bustOrder [3,2,1] のうち bustOrder=3 は 1位
+     *   => rank = bustPlayers.length - bustOrderRank + 1 ではなく
+     *   => 単純に: 同じbustOrderを持つプレイヤーが「何番目に退場したか」を逆順で表示
+     *   bustOrder=1(最初に退場) => players.length位
+     *   bustOrder=N(最後に退場) => (players.length - N + 1)位
+     */
+    bustRank(p) {
+      // players.length - bustOrder + 1 = 表示順位
+      return this.players.length - p.bustOrder + 1;
+    },
+
     /* ---- Add Players ---- */
     addPlayer() {
       const name = this.newPlayerName.trim();
       if (!name) { this.showToast('Please enter a name.'); return; }
-
-      // 既存bust済みの分子・分母を+1
-      this.players.forEach(p => {
-        if (p.status === 'bust') {
-          p.bustPosition += 1;
-          p.bustTotal += 1;
-        }
-      });
 
       this.players.push({
         id: this.nextId++,
@@ -743,8 +755,7 @@ createApp({
         status: 'active',
         ra: 0,
         memo: '',
-        bustPosition: null,
-        bustTotal: null,
+        bustOrder: null,  // bust時に連番で記録
       });
 
       this.newPlayerName = '';
@@ -759,14 +770,6 @@ createApp({
       const names = this.bulkNames.split('\n').map(s => s.trim()).filter(s => s.length > 0);
       if (!names.length) { this.showToast('Enter at least one name.'); return; }
 
-      // 既存bust済みの分子・分母を追加人数分+
-      this.players.forEach(p => {
-        if (p.status === 'bust') {
-          p.bustPosition += names.length;
-          p.bustTotal    += names.length;
-        }
-      });
-
       names.forEach(name => {
         this.players.push({
           id: this.nextId++,
@@ -774,8 +777,7 @@ createApp({
           status: 'active',
           ra: 0,
           memo: '',
-          bustPosition: null,
-          bustTotal: null,
+          bustOrder: null,
         });
       });
 
@@ -788,21 +790,14 @@ createApp({
     removePlayer(id) {
       const idx = this.players.findIndex(p => p.id === id);
       if (idx === -1) return;
+      const name = this.players[idx].name;
       const removed = this.players[idx];
-      const name = removed.name;
 
+      // bust済みプレイヤーを消す場合、それより後にbustした人のbustOrderを-1
       if (removed.status === 'bust') {
         this.players.forEach(p => {
-          if (p.status === 'bust' && p.id !== id) {
-            if (p.bustPosition > 1) p.bustPosition -= 1;
-            if (p.bustTotal > 0)    p.bustTotal    -= 1;
-          }
-        });
-      } else {
-        this.players.forEach(p => {
-          if (p.status === 'bust') {
-            if (p.bustPosition > 1) p.bustPosition -= 1;
-            if (p.bustTotal > 0)    p.bustTotal    -= 1;
+          if (p.status === 'bust' && p.id !== id && p.bustOrder > removed.bustOrder) {
+            p.bustOrder -= 1;
           }
         });
       }
@@ -835,12 +830,12 @@ createApp({
     bustPlayer() {
       const p = this.selectedPlayer;
       if (!p) return;
-      const activeCount = this.players.filter(x => x.status === 'active').length;
-      p.bustPosition = activeCount;
-      p.bustTotal    = this.players.length;
+      // bustOrder = 現在のbust済み人数 + 1（何番目に退場したか）
+      p.bustOrder = this.maxBustOrder + 1;
       p.status = 'bust';
+      const rank = this.bustRank(p);
       this.save();
-      this.showToast(`${p.name} busted in ${p.bustPosition}${this.ordinal(p.bustPosition)} place.`);
+      this.showToast(`${p.name} busted in ${rank}${this.ordinal(rank)} place.`);
       this.closeModal();
     },
 
@@ -848,16 +843,17 @@ createApp({
     revivePlayer() {
       const p = this.selectedPlayer;
       if (!p) return;
-      const revivedPos = p.bustPosition;
+      const removedOrder = p.bustOrder;
+
+      // このプレイヤーより後にbustした人のbustOrderを-1
       this.players.forEach(q => {
-        if (q.status === 'bust' && q.id !== p.id && q.bustPosition <= revivedPos) {
-          q.bustPosition += 1;
-          if (q.bustTotal > 0) q.bustTotal -= 1;
+        if (q.status === 'bust' && q.id !== p.id && q.bustOrder > removedOrder) {
+          q.bustOrder -= 1;
         }
       });
+
       p.status = 'active';
-      p.bustPosition = null;
-      p.bustTotal = null;
+      p.bustOrder = null;
       this.save();
       this.showToast(`${p.name} has been revived.`);
       this.closeModal();
@@ -883,7 +879,7 @@ createApp({
     exportData() {
       const total = this.players.length;
       const active = this.activePlayers;
-      const bust   = this.bustPlayers; // already sorted
+      const bust   = this.bustPlayers; // computed: bustOrderの降順（上位から）
 
       const now = new Date();
       const dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
@@ -899,7 +895,8 @@ createApp({
       if (active.length === 0) {
         text += `[${total} players / ${entries} Entries]\n`;
         bust.forEach(p => {
-          text += `${p.bustPosition}/${p.bustTotal || total}  ${p.name}${raStr(p.ra)}\n`;
+          const rank = this.bustRank(p);
+          text += `${rank}/${total}  ${p.name}${raStr(p.ra)}\n`;
         });
       } else {
         text += `\n[Active — ${active.length} players]\n`;
@@ -909,8 +906,9 @@ createApp({
         });
         text += `\n[Busted — ${bust.length} players]\n`;
         bust.forEach(p => {
+          const rank = this.bustRank(p);
           const memo = p.memo ? p.memo + '  ' : '';
-          text += `${p.bustPosition}/${p.bustTotal || total}  ${memo}${p.name}${raStr(p.ra)}\n`;
+          text += `${rank}/${total}  ${memo}${p.name}${raStr(p.ra)}\n`;
         });
       }
 
