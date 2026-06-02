@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Poker">
+<title>Poker Tournament</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+// PWA icon via canvas
+(function() {
+  var canvas = document.createElement('canvas');
+  canvas.width = 180; canvas.height = 180;
+  var ctx = canvas.getContext('2d');
+  var r = 38;
+  ctx.beginPath();
+  ctx.moveTo(r,0); ctx.lineTo(180-r,0); ctx.quadraticCurveTo(180,0,180,r);
+  ctx.lineTo(180,180-r); ctx.quadraticCurveTo(180,180,180-r,180);
+  ctx.lineTo(r,180); ctx.quadraticCurveTo(0,180,0,180-r);
+  ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0); ctx.closePath();
+  ctx.fillStyle = '#1a1a1a'; ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 108px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('Pt', 92, 90);
+  var link = document.createElement('link');
+  link.rel = 'apple-touch-icon';
+  link.href = canvas.toDataURL('image/png');
+  document.head.appendChild(link);
+})();
+</script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f0f2ee;
+  color: #1a2a1c;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 14px;
+}
+
+/* Header */
+.header {
+  background: #ffffff;
+  border-bottom: 1px solid #e0e5db;
+  padding: 10px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  gap: 8px;
+}
+
+.header-stats { display: flex; gap: 8px; width: 100%; }
+
+.stat-badge {
+  background: #eaf3ec;
+  border: 1px solid #b8d9be;
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  flex: 1;
+}
+
+.stat-badge strong {
+  display: block;
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-size: 20px;
+  color: #2e7d44;
+  letter-spacing: 1px;
+  line-height: 1.1;
+}
+
+.stat-badge span { font-size: 9px; color: #627564; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Tabs */
+.tabs { display: flex; background: #ffffff; border-bottom: 1px solid #e0e5db; }
+
+.tab {
+  flex: 1;
+  padding: 11px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #627564;
+  text-align: center;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab.active { color: #2e7d44; border-bottom-color: #2e7d44; }
+
+/* Content */
+.content { padding: 14px; padding-bottom: 48px; }
+
+/* Card */
+.card {
+  background: #ffffff;
+  border: 1px solid #e0e5db;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #627564;
+  margin-bottom: 12px;
+}
+
+/* Inputs */
+input[type="text"], textarea {
+  background: #f6f7f4;
+  border: 1px solid #e0e5db;
+  border-radius: 8px;
+  color: #1a2a1c;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="text"]:focus, textarea:focus {
+  border-color: #2e7d44;
+  box-shadow: 0 0 0 3px rgba(46,125,68,0.12);
+}
+
+.input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.input-row input { flex: 1; width: auto; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.12s;
+}
+
+.btn:active { opacity: 0.75; }
+.btn-green     { background: #2e7d44; color: #ffffff; }
+.btn-red       { background: #b53a2e; color: #ffffff; }
+.btn-amber     { background: #a06010; color: #ffffff; }
+.btn-ghost     { background: #f6f7f4; color: #1a2a1c; border: 1px solid #e0e5db; }
+.btn-white-red { background: #ffffff; color: #b53a2e; border: 1px solid #e0e5db; }
+.btn-sm        { padding: 7px 12px; font-size: 12px; border-radius: 7px; }
+.btn-full      { width: 100%; }
+.btn-row       { display: flex; gap: 8px; margin-bottom: 10px; }
+.btn-row .btn  { flex: 1; }
+
+/* Section label */
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #9aab9c;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e0e5db;
+}
+
+/* Player list */
+.player-list { display: flex; flex-direction: column; gap: 7px; }
+
+.player-item {
+  background: #ffffff;
+  border: 1px solid #e0e5db;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.1s;
+}
+
+.player-item:active { background: #f6f7f4; }
+
+.player-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+
+.player-item.status-active::before { background: #2e7d44; }
+.player-item.status-bust::before   { background: #e0e5db; }
+
+.player-rank {
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-size: 17px;
+  color: #9aab9c;
+  min-width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.player-info { flex: 1; min-width: 0; }
+
+.player-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: #1a2a1c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-name.is-bust { color: #627564; }
+
+.player-sub {
+  font-size: 11px;
+  color: #627564;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ra-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f1ebfa;
+  color: #6b3fa0;
+  border: 1px solid #c9aee8;
+  flex-shrink: 0;
+}
+
+.ra-pill.dim { opacity: 0.6; }
+
+.player-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.status-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.tag-active { background: #eaf3ec; color: #2e7d44; border: 1px solid #b8d9be; }
+.tag-bust   { background: #f4f4f4; color: #999999; border: 1px solid #dddddd; }
+
+.bust-rank {
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-size: 14px;
+  color: #999999;
+  letter-spacing: 0.5px;
+}
+
+.memo-text { color: #9aab9c; font-size: 11px; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 40px 20px; color: #9aab9c; }
+.empty-icon {
+  width: 40px; height: 40px;
+  border: 2px solid #e0e5db;
+  border-radius: 8px;
+  margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-icon-inner { width: 16px; height: 16px; background: #e0e5db; border-radius: 2px; }
+.empty-state p { font-size: 13px; }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.32);
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
+  border: 1px solid #e0e5db;
+  border-bottom: none;
+  padding: 18px 16px 40px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: slideUp 0.22s ease;
+  box-shadow: 0 -6px 30px rgba(0,0,0,0.1);
+}
+
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.modal-handle {
+  width: 32px; height: 4px;
+  background: #e0e5db;
+  border-radius: 2px;
+  margin: 0 auto 14px;
+}
+
+.modal-player-name {
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: #1a2a1c;
+  margin-bottom: 2px;
+}
+
+.modal-player-sub { font-size: 12px; color: #627564; margin-bottom: 16px; }
+
+hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
+
+/* R/A control */
+.ra-control {
+  background: #f1ebfa;
+  border: 1px solid #c9aee8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ra-control-label { font-weight: 700; font-size: 14px; color: #6b3fa0; }
+.ra-control-sub   { font-size: 11px; color: #627564; margin-top: 1px; }
+.ra-counter       { display: flex; align-items: center; gap: 10px; }
+
+.ra-btn {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  border: 1px solid #c9aee8;
+  background: #ffffff;
+  color: #6b3fa0;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.ra-btn:active { background: #c9aee8; }
+
+.ra-count-display {
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-size: 24px;
+  color: #6b3fa0;
+  min-width: 24px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+/* Reset confirm */
+.reset-confirm-box {
+  background: #b53a2e;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 4px;
+}
+
+.reset-confirm-box p {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* Remove panel */
+.remove-chevron {
+  font-size: 12px;
+  color: #9aab9c;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.remove-chevron.open { transform: rotate(180deg); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%) translateY(120px);
+  background: #1a2a1c;
+  color: #ffffff;
+  border-radius: 20px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 300;
+  transition: transform 0.28s ease;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-stats">
+      <div class="stat-badge">
+        <strong>{{ activeCount }}</strong>
+        <span>Active</span>
+      </div>
+      <div class="stat-badge">
+        <strong>{{ entriesCount }}</strong>
+        <span>Entries</span>
+      </div>
+      <div class="stat-badge">
+        <strong>{{ players.length }}</strong>
+        <span>Players</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab" :class="{ active: currentTab === 'players' }" @click="currentTab = 'players'">Players</div>
+    <div class="tab" :class="{ active: currentTab === 'settings' }" @click="currentTab = 'settings'">Settings</div>
+  </div>
+
+  <!-- ===== Players Tab ===== -->
+  <div class="content" v-show="currentTab === 'players'">
+    <div class="section-label">Players ({{ players.length }})</div>
+
+    <!-- Empty state -->
+    <div v-if="players.length === 0" class="empty-state">
+      <div class="empty-icon"><div class="empty-icon-inner"></div></div>
+      <p>No players yet. Go to Settings to add players.</p>
+    </div>
+
+    <!-- Player list -->
+    <div v-else class="player-list">
+
+      <!-- Active players -->
+      <div
+        v-for="(p, i) in activePlayers"
+        :key="p.id"
+        class="player-item status-active"
+        @click="openModal(p)"
+      >
+        <div class="player-rank">{{ i + 1 }}</div>
+        <div class="player-info">
+          <div class="player-name">{{ p.name }}</div>
+          <div class="player-sub">
+            <span>Active</span>
+            <template v-if="p.ra > 0">
+              <span v-for="n in p.ra" :key="n" class="ra-pill">R/A</span>
+            </template>
+            <span v-if="p.memo" class="memo-text">{{ p.memo }}</span>
+          </div>
+        </div>
+        <div class="player-right">
+          <span class="status-tag tag-active">Playing</span>
+        </div>
+      </div>
+
+      <!-- Bust section -->
+      <template v-if="bustPlayers.length > 0">
+        <div class="section-label" style="margin-top:14px">Busted ({{ bustPlayers.length }})</div>
+        <div
+          v-for="p in bustPlayers"
+          :key="p.id"
+          class="player-item status-bust"
+          @click="openModal(p)"
+        >
+          <div class="player-rank" style="color:#cccccc; font-size:12px">—</div>
+          <div class="player-info">
+            <div class="player-name is-bust">{{ p.name }}</div>
+            <div class="player-sub">
+              <span>Busted</span>
+              <template v-if="p.ra > 0">
+                <span v-for="n in p.ra" :key="n" class="ra-pill dim">R/A</span>
+              </template>
+              <span v-if="p.memo" class="memo-text" style="color:#b0b8b0">{{ p.memo }}</span>
+            </div>
+          </div>
+          <div class="player-right">
+            <div class="bust-rank">{{ p.bustPosition }} / {{ p.bustTotal || players.length }}</div>
+            <span class="status-tag tag-bust">Bust</span>
+          </div>
+        </div>
+      </template>
+
+    </div>
+  </div>
+
+  <!-- ===== Settings Tab ===== -->
+  <div class="content" v-show="currentTab === 'settings'">
+
+    <!-- Add Player -->
+    <div class="card">
+      <div class="card-title">Add Player</div>
+      <div class="input-row">
+        <input type="text" v-model="newPlayerName" placeholder="Enter name..." maxlength="16" @keyup.enter="addPlayer">
+        <button class="btn btn-green" @click="addPlayer">Add</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" @click="openBulkModal">Bulk Add</button>
+      </div>
+    </div>
+
+    <!-- Remove Player (accordion) -->
+    <div class="card">
+      <div
+        class="card-title"
+        style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; margin-bottom:0;"
+        @click="removePanelOpen = !removePanelOpen"
+      >
+        <span>Remove Player</span>
+        <span class="remove-chevron" :class="{ open: removePanelOpen }">▼</span>
+      </div>
+
+      <div v-show="removePanelOpen" style="margin-top:12px;">
+        <p v-if="players.length === 0" style="font-size:13px; color:#9aab9c;">No players added yet.</p>
+        <div v-for="p in players" :key="p.id" style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #e0e5db;">
+          <div :style="{ width:'8px', height:'8px', borderRadius:'50%', background: p.status === 'bust' ? '#cccccc' : '#2e7d44', flexShrink:0 }"></div>
+          <div style="flex:1; font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ p.name }}</div>
+          <button class="btn btn-ghost btn-sm" style="color:#b53a2e; border-color:#f0c8c4; padding:5px 10px;" @click="removePlayer(p.id)">Remove</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data -->
+    <div class="card">
+      <div class="card-title">Data</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" @click="showResetConfirm = true">Reset All</button>
+        <button class="btn btn-ghost" @click="exportData">Export</button>
+      </div>
+
+      <!-- Reset confirm -->
+      <div v-show="showResetConfirm" class="reset-confirm-box">
+        <p>Reset all data? This cannot be undone.</p>
+        <div class="btn-row" style="margin-bottom:0;">
+          <button class="btn btn-ghost" @click="showResetConfirm = false">Cancel</button>
+          <button class="btn btn-white-red" @click="resetConfirmed">Reset</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Player Modal ===== -->
+  <div class="modal-overlay" :class="{ open: modalOpen }" @click.self="closeModal">
+    <div class="modal" v-if="selectedPlayer">
+      <div class="modal-handle"></div>
+      <div class="modal-player-name">{{ selectedPlayer.name }}</div>
+      <div class="modal-player-sub">
+        <template v-if="selectedPlayer.status === 'bust'">
+          Busted — {{ selectedPlayer.bustPosition }}{{ ordinal(selectedPlayer.bustPosition) }} place / {{ players.length }} players
+        </template>
+        <template v-else>Active</template>
+      </div>
+
+      <!-- R/A counter -->
+      <div class="ra-control">
+        <div>
+          <div class="ra-control-label">R/A (Rebuy / Add-on)</div>
+          <div class="ra-control-sub">Number of rebuys / add-ons</div>
+        </div>
+        <div class="ra-counter">
+          <button class="ra-btn" @click="changeRA(-1)">−</button>
+          <div class="ra-count-display">{{ selectedPlayer.ra }}</div>
+          <button class="ra-btn" @click="changeRA(1)">+</button>
+        </div>
+      </div>
+
+      <!-- Active actions -->
+      <template v-if="selectedPlayer.status === 'active'">
+        <hr>
+        <button class="btn btn-red btn-full" @click="bustPlayer">Mark as Bust</button>
+      </template>
+
+      <!-- Bust actions -->
+      <template v-if="selectedPlayer.status === 'bust'">
+        <hr>
+        <button class="btn btn-amber btn-full" @click="revivePlayer">Revive Player</button>
+      </template>
+
+      <!-- Memo -->
+      <hr>
+      <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">Memo</div>
+      <input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="memo" v-model="memoInput" @blur="saveMemo">
+
+      <hr>
+      <button class="btn btn-ghost btn-full" @click="closeModal">Close</button>
+    </div>
+  </div>
+
+  <!-- ===== Bulk Add Modal ===== -->
+  <div class="modal-overlay" :class="{ open: bulkModalOpen }" @click.self="closeBulkModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-player-name" style="margin-bottom:10px;">Bulk Add</div>
+      <p style="font-size:12px; color:#627564; margin-bottom:10px;">Enter one name per line.</p>
+      <textarea v-model="bulkNames" style="height:130px; resize:none;" placeholder="Alice&#10;Bob&#10;Charlie"></textarea>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn btn-ghost" @click="closeBulkModal">Cancel</button>
+        <button class="btn btn-green" @click="bulkAddPlayers">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" :class="{ show: toastVisible }">{{ toastMessage }}</div>
+
+</div><!-- #app -->
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+  data() {
+    return {
+      // Tab
+      currentTab: 'players',
+
+      // Players
+      players: [],
+      nextId: 1,
+
+      // Modal
+      modalOpen: false,
+      selectedPlayer: null,
+      memoInput: '',
+
+      // Bulk add
+      bulkModalOpen: false,
+      bulkNames: '',
+
+      // Settings
+      newPlayerName: '',
+      removePanelOpen: false,
+      showResetConfirm: false,
+
+      // Toast
+      toastMessage: '',
+      toastVisible: false,
+      toastTimer: null,
+    };
+  },
+
+  computed: {
+    activePlayers() {
+      return this.players.filter(p => p.status !== 'bust');
+    },
+    bustPlayers() {
+      return this.players
+        .filter(p => p.status === 'bust')
+        .slice()
+        .sort((a, b) => a.bustPosition - b.bustPosition);
+    },
+    activeCount() {
+      return this.players.filter(p => p.status !== 'bust').length;
+    },
+    entriesCount() {
+      return this.players.reduce((sum, p) => sum + 1 + (p.ra || 0), 0);
+    },
+  },
+
+  methods: {
+
+    /* ---- Storage ---- */
+    save() {
+      try {
+        localStorage.setItem('poker_v7', JSON.stringify({
+          players: this.players,
+          nextId: this.nextId,
+        }));
+      } catch(e) {}
+    },
+
+    load() {
+      try {
+        const saved = localStorage.getItem('poker_v7');
+        if (saved) {
+          const d = JSON.parse(saved);
+          this.players = d.players || [];
+          this.nextId  = d.nextId  || 1;
+        }
+      } catch(e) {}
+    },
+
+    /* ---- Add Players ---- */
+    addPlayer() {
+      const name = this.newPlayerName.trim();
+      if (!name) { this.showToast('Please enter a name.'); return; }
+
+      // 既存bust済みの分子・分母を+1
+      this.players.forEach(p => {
+        if (p.status === 'bust') {
+          p.bustPosition += 1;
+          p.bustTotal += 1;
+        }
+      });
+
+      this.players.push({
+        id: this.nextId++,
+        name,
+        status: 'active',
+        ra: 0,
+        memo: '',
+        bustPosition: null,
+        bustTotal: null,
+      });
+
+      this.newPlayerName = '';
+      this.save();
+      this.showToast(`${name} added.`);
+    },
+
+    openBulkModal()  { this.bulkModalOpen = true; },
+    closeBulkModal() { this.bulkModalOpen = false; this.bulkNames = ''; },
+
+    bulkAddPlayers() {
+      const names = this.bulkNames.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+      if (!names.length) { this.showToast('Enter at least one name.'); return; }
+
+      // 既存bust済みの分子・分母を追加人数分+
+      this.players.forEach(p => {
+        if (p.status === 'bust') {
+          p.bustPosition += names.length;
+          p.bustTotal    += names.length;
+        }
+      });
+
+      names.forEach(name => {
+        this.players.push({
+          id: this.nextId++,
+          name,
+          status: 'active',
+          ra: 0,
+          memo: '',
+          bustPosition: null,
+          bustTotal: null,
+        });
+      });
+
+      this.closeBulkModal();
+      this.save();
+      this.showToast(`${names.length} player${names.length > 1 ? 's' : ''} added.`);
+    },
+
+    /* ---- Remove Player ---- */
+    removePlayer(id) {
+      const idx = this.players.findIndex(p => p.id === id);
+      if (idx === -1) return;
+      const removed = this.players[idx];
+      const name = removed.name;
+
+      if (removed.status === 'bust') {
+        this.players.forEach(p => {
+          if (p.status === 'bust' && p.id !== id) {
+            if (p.bustPosition > 1) p.bustPosition -= 1;
+            if (p.bustTotal > 0)    p.bustTotal    -= 1;
+          }
+        });
+      } else {
+        this.players.forEach(p => {
+          if (p.status === 'bust') {
+            if (p.bustPosition > 1) p.bustPosition -= 1;
+            if (p.bustTotal > 0)    p.bustTotal    -= 1;
+          }
+        });
+      }
+
+      this.players.splice(idx, 1);
+      this.save();
+      this.showToast(`${name} removed.`);
+    },
+
+    /* ---- Player Modal ---- */
+    openModal(player) {
+      this.selectedPlayer = player;
+      this.memoInput = player.memo || '';
+      this.modalOpen = true;
+    },
+
+    closeModal() {
+      this.modalOpen = false;
+      this.selectedPlayer = null;
+    },
+
+    /* ---- R/A ---- */
+    changeRA(delta) {
+      if (!this.selectedPlayer) return;
+      this.selectedPlayer.ra = Math.max(0, (this.selectedPlayer.ra || 0) + delta);
+      this.save();
+    },
+
+    /* ---- Bust ---- */
+    bustPlayer() {
+      const p = this.selectedPlayer;
+      if (!p) return;
+      const activeCount = this.players.filter(x => x.status === 'active').length;
+      p.bustPosition = activeCount;
+      p.bustTotal    = this.players.length;
+      p.status = 'bust';
+      this.save();
+      this.showToast(`${p.name} busted in ${p.bustPosition}${this.ordinal(p.bustPosition)} place.`);
+      this.closeModal();
+    },
+
+    /* ---- Revive ---- */
+    revivePlayer() {
+      const p = this.selectedPlayer;
+      if (!p) return;
+      const revivedPos = p.bustPosition;
+      this.players.forEach(q => {
+        if (q.status === 'bust' && q.id !== p.id && q.bustPosition <= revivedPos) {
+          q.bustPosition += 1;
+          if (q.bustTotal > 0) q.bustTotal -= 1;
+        }
+      });
+      p.status = 'active';
+      p.bustPosition = null;
+      p.bustTotal = null;
+      this.save();
+      this.showToast(`${p.name} has been revived.`);
+      this.closeModal();
+    },
+
+    /* ---- Memo ---- */
+    saveMemo() {
+      if (!this.selectedPlayer) return;
+      this.selectedPlayer.memo = this.memoInput;
+      this.save();
+    },
+
+    /* ---- Reset ---- */
+    resetConfirmed() {
+      this.players = [];
+      this.nextId = 1;
+      this.showResetConfirm = false;
+      this.save();
+      this.showToast('Tournament reset.');
+    },
+
+    /* ---- Export ---- */
+    exportData() {
+      const total = this.players.length;
+      const active = this.activePlayers;
+      const bust   = this.bustPlayers; // already sorted
+
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+      const entries = this.entriesCount;
+
+      const raStr = ra => {
+        if (!ra) return '';
+        return ra === 1 ? ' (R/A)' : ` (R/A x${ra})`;
+      };
+
+      let text = `=== POKER TOURNAMENT ===\n${dateStr}\n`;
+
+      if (active.length === 0) {
+        text += `[${total} players / ${entries} Entries]\n`;
+        bust.forEach(p => {
+          text += `${p.bustPosition}/${p.bustTotal || total}  ${p.name}${raStr(p.ra)}\n`;
+        });
+      } else {
+        text += `\n[Active — ${active.length} players]\n`;
+        active.forEach((p, i) => {
+          const memo = p.memo ? p.memo + '  ' : '';
+          text += `${i+1}/${total}  ${memo}${p.name}${raStr(p.ra)}\n`;
+        });
+        text += `\n[Busted — ${bust.length} players]\n`;
+        bust.forEach(p => {
+          const memo = p.memo ? p.memo + '  ' : '';
+          text += `${p.bustPosition}/${p.bustTotal || total}  ${memo}${p.name}${raStr(p.ra)}\n`;
+        });
+      }
+
+      if (navigator.share) {
+        navigator.share({ title: 'Tournament Results', text }).catch(() => this.copyToClipboard(text));
+      } else {
+        this.copyToClipboard(text);
+      }
+    },
+
+    copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => this.showToast('Copied to clipboard.'))
+          .catch(() => this.fallbackCopy(text));
+      } else {
+        this.fallbackCopy(text);
+      }
+    },
+
+    fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); this.showToast('Copied to clipboard.'); }
+      catch(e) { this.showToast('Copy failed.'); }
+      document.body.removeChild(ta);
+    },
+
+    /* ---- Helpers ---- */
+    ordinal(n) {
+      const s = ['th','st','nd','rd'], v = n % 100;
+      return s[(v-20) % 10] || s[v] || s[0];
+    },
+
+    showToast(msg) {
+      this.toastMessage = msg;
+      this.toastVisible = true;
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => { this.toastVisible = false; }, 2400);
+    },
+  },
+
+  mounted() {
+    this.load();
+  },
+
+}).mount('#app');
+</script>
+</body>
+</html>
