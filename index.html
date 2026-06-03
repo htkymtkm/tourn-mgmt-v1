@@ -81,14 +81,21 @@ body {
 .stat-badge span { font-size: 9px; color: #627564; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* Tabs */
-.tabs { display: flex; background: #ffffff; border-bottom: 1px solid #e0e5db; }
+.tabs {
+  display: flex;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e5db;
+  position: sticky;
+  top: 57px; /* header height */
+  z-index: 99;
+}
 
 .tab {
   flex: 1;
-  padding: 11px 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #627564;
+  padding: 9px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9aab9c;
   text-align: center;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -863,16 +870,22 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
 
       <!-- If empty: assign a player -->
       <template v-else>
-        <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">Assign Player</div>
-        <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; margin-bottom:8px;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:8px;">Assign Player</div>
+        <div v-if="activePlayers.length === 0" style="font-size:13px; color:#9aab9c; padding:8px 0;">No active players.</div>
+        <div style="display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; margin-bottom:8px;">
           <button
-            v-for="p in unseatedActivePlayers"
+            v-for="p in activePlayers"
             :key="p.id"
             class="btn btn-ghost btn-full"
-            style="text-align:left; justify-content:flex-start;"
+            style="text-align:left; justify-content:flex-start; gap:8px;"
             @click="assignToSeat(p, seatModalData.tableId, seatModalData.seat)"
-          >{{ p.name }}</button>
-          <p v-if="unseatedActivePlayers.length === 0" style="font-size:13px; color:#9aab9c; padding:8px 0;">No unseated players.</p>
+          >
+            <span style="flex:1;">{{ p.name }}</span>
+            <span v-if="p.tableId" style="font-size:11px; color:#9aab9c; flex-shrink:0;">
+              {{ tableLabel(p.tableId) }}-{{ p.seatNum }}
+            </span>
+            <span v-else style="font-size:11px; color:#c0cac1; flex-shrink:0;">unassigned</span>
+          </button>
         </div>
       </template>
 
@@ -1447,6 +1460,11 @@ createApp({
     },
 
     /* ---- Helpers ---- */
+    tableLabel(tableId) {
+      const t = this.tables.find(t => t.id === tableId);
+      return t ? t.label : '?';
+    },
+
     ordinal(n) {
       const s = ['th','st','nd','rd'], v = n % 100;
       return s[(v-20) % 10] || s[v] || s[0];
