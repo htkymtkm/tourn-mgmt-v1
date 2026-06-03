@@ -675,18 +675,6 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
   <!-- ===== Settings Tab ===== -->
   <div class="content" v-show="currentTab === 'settings'">
 
-    <!-- Table Setup -->
-    <div class="card">
-      <div class="card-title">Tables</div>
-      <div class="input-row">
-        <input type="number" v-model.number="tableCountInput" placeholder="Number of tables" min="1" max="8" style="width:auto; flex:1;">
-        <button class="btn btn-green" @click="setTables">Set</button>
-      </div>
-      <p v-if="tables.length > 0" style="font-size:12px; color:#627564;">
-        {{ tables.length }} table(s): {{ tables.map(t => 'TABLE ' + t.label).join(', ') }}
-      </p>
-    </div>
-
     <!-- Add Player -->
     <div class="card">
       <div class="card-title">Add Player</div>
@@ -709,7 +697,6 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
         <span>Remove Player</span>
         <span class="remove-chevron" :class="{ open: removePanelOpen }">▼</span>
       </div>
-
       <div v-show="removePanelOpen" style="margin-top:12px;">
         <p v-if="players.length === 0" style="font-size:13px; color:#9aab9c;">No players added yet.</p>
         <div v-for="p in players" :key="p.id" style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #e0e5db;">
@@ -720,6 +707,27 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
       </div>
     </div>
 
+    <!-- Tables (accordion) -->
+    <div class="card">
+      <div
+        class="card-title"
+        style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; margin-bottom:0;"
+        @click="tablesPanelOpen = !tablesPanelOpen"
+      >
+        <span>Tables</span>
+        <span class="remove-chevron" :class="{ open: tablesPanelOpen }">▼</span>
+      </div>
+      <div v-show="tablesPanelOpen" style="margin-top:12px;">
+        <div class="input-row">
+          <input type="number" v-model.number="tableCountInput" placeholder="Number of tables" min="1" max="26" style="width:auto; flex:1;">
+          <button class="btn btn-green" @click="setTables">Set</button>
+        </div>
+        <p v-if="tables.length > 0" style="font-size:12px; color:#627564;">
+          {{ tables.length }} table(s): {{ tables.map(t => 'TABLE ' + t.label).join(', ') }}
+        </p>
+      </div>
+    </div>
+
     <!-- Data -->
     <div class="card">
       <div class="card-title">Data</div>
@@ -727,8 +735,6 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
         <button class="btn btn-ghost" @click="showResetConfirm = true">Reset All</button>
         <button class="btn btn-ghost" @click="exportData">Export</button>
       </div>
-
-      <!-- Reset confirm -->
       <div v-show="showResetConfirm" class="reset-confirm-box">
         <p>Reset all data? This cannot be undone.</p>
         <div class="btn-row" style="margin-bottom:0;">
@@ -814,14 +820,15 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
       <!-- If occupied: actions for this player -->
       <template v-if="seatModalData.player">
         <!-- Lock toggle -->
-        <div class="ra-control" style="margin-bottom:8px; cursor:pointer;" @click="toggleLock(seatModalData.player)">
-          <div>
-            <div class="ra-control-label" style="color: seatModalData.player.seatLocked ? '#a06010' : '#2e7d44'">
-              {{ seatModalData.player.seatLocked ? '🔒 Locked' : '🔓 Unlocked' }}
-            </div>
-            <div class="ra-control-sub">Tap to toggle seat lock</div>
-          </div>
-        </div>
+        <button
+          class="btn btn-full"
+          :style="seatModalData.player.seatLocked
+            ? 'background:#b53a2e; color:#fff; margin-bottom:8px;'
+            : 'background:#f6f7f4; color:#627564; border:1px solid #e0e5db; margin-bottom:8px;'"
+          @click="toggleLock(seatModalData.player)"
+        >
+          {{ seatModalData.player.seatLocked ? 'Locked' : 'Unlocked' }}
+        </button>
         <hr>
         <!-- Move to another table -->
         <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">Move to Table</div>
@@ -838,12 +845,12 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
         <hr>
         <!-- Assign to specific seat -->
         <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">Assign to Specific Seat</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
-          <select v-model="seatMoveTarget.tableId" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:8px; font-size:13px; color:#1a2a1c; outline:none;">
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <select v-model="seatMoveTarget.tableId" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:10px 12px; font-size:14px; color:#1a2a1c; outline:none; height:44px; -webkit-appearance:none; appearance:none;">
             <option value="">Table</option>
             <option v-for="t in tables" :key="t.id" :value="t.id">{{ t.label }}</option>
           </select>
-          <select v-model="seatMoveTarget.seat" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:8px; font-size:13px; color:#1a2a1c; outline:none;">
+          <select v-model="seatMoveTarget.seat" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:10px 12px; font-size:14px; color:#1a2a1c; outline:none; height:44px; -webkit-appearance:none; appearance:none;">
             <option value="">Seat</option>
             <option v-for="s in 9" :key="s" :value="s" :disabled="isSeatOccupied(seatMoveTarget.tableId, s, seatModalData.player.id)">{{ s }}</option>
           </select>
@@ -938,6 +945,7 @@ createApp({
       // Settings
       newPlayerName: '',
       removePanelOpen: false,
+      tablesPanelOpen: false,
       showResetConfirm: false,
       tableCountInput: 2,
 
