@@ -51,9 +51,6 @@ body {
   background: #ffffff;
   border-bottom: 1px solid #e0e5db;
   padding: 10px 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
   display: flex;
   gap: 8px;
 }
@@ -80,14 +77,20 @@ body {
 
 .stat-badge span { font-size: 9px; color: #627564; text-transform: uppercase; letter-spacing: 0.5px; }
 
+/* Sticky wrapper for header + tabs */
+.sticky-top {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #ffffff;
+}
+
 /* Tabs */
 .tabs {
   display: flex;
   background: #ffffff;
   border-bottom: 1px solid #e0e5db;
-  position: sticky;
-  top: 57px; /* header height */
-  z-index: 99;
 }
 
 .tab {
@@ -542,29 +545,29 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
 
 <div id="app">
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-stats">
-      <div class="stat-badge">
-        <strong>{{ activeCount }}</strong>
-        <span>Active</span>
-      </div>
-      <div class="stat-badge">
-        <strong>{{ entriesCount }}</strong>
-        <span>Entries</span>
-      </div>
-      <div class="stat-badge">
-        <strong>{{ players.length }}</strong>
-        <span>Players</span>
+  <!-- Sticky header + tabs -->
+  <div class="sticky-top">
+    <div class="header">
+      <div class="header-stats">
+        <div class="stat-badge">
+          <strong>{{ activeCount }}</strong>
+          <span>Active</span>
+        </div>
+        <div class="stat-badge">
+          <strong>{{ entriesCount }}</strong>
+          <span>Entries</span>
+        </div>
+        <div class="stat-badge">
+          <strong>{{ players.length }}</strong>
+          <span>Players</span>
+        </div>
       </div>
     </div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="tabs">
-    <div class="tab" :class="{ active: currentTab === 'players' }" @click="currentTab = 'players'">Players</div>
-    <div class="tab" :class="{ active: currentTab === 'seats' }" @click="currentTab = 'seats'">Seats</div>
-    <div class="tab" :class="{ active: currentTab === 'settings' }" @click="currentTab = 'settings'">Settings</div>
+    <div class="tabs">
+      <div class="tab" :class="{ active: currentTab === 'players' }" @click="currentTab = 'players'">Players</div>
+      <div class="tab" :class="{ active: currentTab === 'seats' }" @click="currentTab = 'seats'">Seats</div>
+      <div class="tab" :class="{ active: currentTab === 'settings' }" @click="currentTab = 'settings'">Settings</div>
+    </div>
   </div>
 
   <!-- ===== Players Tab ===== -->
@@ -638,9 +641,14 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
 
     <!-- Assign button -->
     <div style="margin-bottom:12px;">
-      <button class="btn btn-ghost btn-sm" @click="requestAssignSeats" style="font-size:11px; color:#627564;">
-        Assign Seats
-      </button>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button class="btn btn-ghost btn-sm" @click="requestAssignSeats" style="font-size:11px; color:#627564;">
+          Assign Seats
+        </button>
+        <button class="btn btn-ghost btn-sm" @click="resetSeats" style="font-size:11px; color:#e07070; border-color:#f0c8c4;">
+          Reset Seats
+        </button>
+      </div>
     </div>
 
     <!-- No tables -->
@@ -1329,6 +1337,17 @@ createApp({
       this.save();
       this.closeSeatModal();
       this.showToast(`${player.name} → ${tLabel}-${seat}`);
+    },
+
+    /* ---- Reset Seats ---- */
+    resetSeats() {
+      this.players.forEach(p => {
+        p.tableId = null;
+        p.seatNum = null;
+        p.seatLocked = false;
+      });
+      this.save();
+      this.showToast('All seats reset.');
     },
 
     /* ---- Assign Seats (initial / redraw) ---- */
