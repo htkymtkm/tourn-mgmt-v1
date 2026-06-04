@@ -488,6 +488,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
 .seat-row:active { background: #e0e5db; }
 
 .seat-row.empty { color: #9aab9c; }
+.seat-row.disabled-seat { background: #ebebeb; opacity: 0.5; }
 
 .seat-label {
   font-family: 'Bebas Neue', 'Inter', sans-serif;
@@ -653,7 +654,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
       <div v-for="table in tables" :key="table.id" class="table-card">
         <div class="table-card-header">
           <div class="table-card-name">TABLE {{ table.label }}</div>
-          <div class="table-card-count">{{ seatedCount(table.id) }}/9</div>
+          <div class="table-card-count">{{ seatedCount(table.id) }}/{{ validSeatCount(table.id) }}</div>
         </div>
 
         <div class="seat-list">
@@ -661,12 +662,16 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
             v-for="seat in 9"
             :key="seat"
             class="seat-row"
-            :class="{ empty: !getPlayerAtSeat(table.id, seat) }"
+            :class="{
+              empty: !getPlayerAtSeat(table.id, seat) && !isSeatDisabled(table.id, seat),
+              'disabled-seat': isSeatDisabled(table.id, seat)
+            }"
             @click="openSeatModal(table.id, seat)"
           >
             <div class="seat-label">{{ table.label }}-{{ seat }}</div>
             <div class="seat-name">
-              <span v-if="getPlayerAtSeat(table.id, seat)">{{ getPlayerAtSeat(table.id, seat).name }}</span>
+              <span v-if="isSeatDisabled(table.id, seat)" style="color:#bbb;">N/A</span>
+              <span v-else-if="getPlayerAtSeat(table.id, seat)">{{ getPlayerAtSeat(table.id, seat).name }}</span>
               <span v-else style="color:#c8d4c9;">—</span>
             </div>
             <div class="lock-icon" v-if="getPlayerAtSeat(table.id, seat) && getPlayerAtSeat(table.id, seat).seatLocked">🔒</div>
@@ -870,23 +875,36 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
 
       <!-- If empty: assign a player -->
       <template v-else>
-        <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:8px;">Assign Player</div>
-        <div v-if="activePlayers.length === 0" style="font-size:13px; color:#9aab9c; padding:8px 0;">No active players.</div>
-        <div style="display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; margin-bottom:8px;">
-          <button
-            v-for="p in activePlayers"
-            :key="p.id"
-            class="btn btn-ghost btn-full"
-            style="text-align:left; justify-content:flex-start; gap:8px;"
-            @click="assignToSeat(p, seatModalData.tableId, seatModalData.seat)"
-          >
-            <span style="flex:1;">{{ p.name }}</span>
-            <span v-if="p.tableId" style="font-size:11px; color:#9aab9c; flex-shrink:0;">
-              {{ tableLabel(p.tableId) }}-{{ p.seatNum }}
-            </span>
-            <span v-else style="font-size:11px; color:#c0cac1; flex-shrink:0;">unassigned</span>
-          </button>
-        </div>
+        <!-- Disable / Enable seat toggle -->
+        <button
+          class="btn btn-full"
+          :style="isSeatDisabled(seatModalData.tableId, seatModalData.seat)
+            ? 'background:#2e7d44; color:#fff; margin-bottom:12px;'
+            : 'background:#f6f7f4; color:#b53a2e; border:1px solid #f0c8c4; margin-bottom:12px;'"
+          @click="toggleDisableSeat(seatModalData.tableId, seatModalData.seat)"
+        >
+          {{ isSeatDisabled(seatModalData.tableId, seatModalData.seat) ? 'Enable this Seat' : 'Disable this Seat' }}
+        </button>
+
+        <template v-if="!isSeatDisabled(seatModalData.tableId, seatModalData.seat)">
+          <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:8px;">Assign Player</div>
+          <div v-if="activePlayers.length === 0" style="font-size:13px; color:#9aab9c; padding:8px 0;">No active players.</div>
+          <div style="display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; margin-bottom:8px;">
+            <button
+              v-for="p in activePlayers"
+              :key="p.id"
+              class="btn btn-ghost btn-full"
+              style="text-align:left; justify-content:flex-start; gap:8px;"
+              @click="assignToSeat(p, seatModalData.tableId, seatModalData.seat)"
+            >
+              <span style="flex:1;">{{ p.name }}</span>
+              <span v-if="p.tableId" style="font-size:11px; color:#9aab9c; flex-shrink:0;">
+                {{ tableLabel(p.tableId) }}-{{ p.seatNum }}
+              </span>
+              <span v-else style="font-size:11px; color:#c0cac1; flex-shrink:0;">unassigned</span>
+            </button>
+          </div>
+        </template>
       </template>
 
       <button class="btn btn-ghost btn-full" @click="closeSeatModal">Close</button>
@@ -1171,13 +1189,13 @@ createApp({
     setTables() {
       const n = Math.min(Math.max(this.tableCountInput || 1, 1), 26);
       const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      // テーブルを増減（既存は保持）
       while (this.tables.length < n) {
         const idx = this.tables.length;
-        this.tables.push({ id: idx + 1, label: labels[idx] });
+        this.tables.push({ id: idx + 1, label: labels[idx], disabledSeats: [] });
       }
       this.tables = this.tables.slice(0, n);
-      // 削除されたテーブルに座っているプレイヤーのシートを解放
+      // disabledSeatsが未定義の既存テーブルに初期化
+      this.tables.forEach(t => { if (!t.disabledSeats) t.disabledSeats = []; });
       const validIds = this.tables.map(t => t.id);
       this.players.forEach(p => {
         if (p.tableId && !validIds.includes(p.tableId)) {
@@ -1186,6 +1204,30 @@ createApp({
       });
       this.save();
       this.showToast(`${n} table(s) set.`);
+    },
+
+    /* ---- Seat disable ---- */
+    isSeatDisabled(tableId, seat) {
+      const t = this.tables.find(t => t.id === tableId);
+      return t ? (t.disabledSeats || []).includes(seat) : false;
+    },
+
+    toggleDisableSeat(tableId, seat) {
+      const t = this.tables.find(t => t.id === tableId);
+      if (!t) return;
+      if (!t.disabledSeats) t.disabledSeats = [];
+      const idx = t.disabledSeats.indexOf(seat);
+      if (idx === -1) {
+        // 無効化: そのシートにいるプレイヤーを外す
+        const p = this.getPlayerAtSeat(tableId, seat);
+        if (p) { p.tableId = null; p.seatNum = null; }
+        t.disabledSeats.push(seat);
+        this.showToast(`Seat ${t.label}-${seat} disabled.`);
+      } else {
+        t.disabledSeats.splice(idx, 1);
+        this.showToast(`Seat ${t.label}-${seat} enabled.`);
+      }
+      this.save();
     },
 
     /* ---- Seat helpers ---- */
@@ -1197,18 +1239,27 @@ createApp({
       return this.players.filter(p => p.tableId === tableId && p.status !== 'bust').length;
     },
 
+    // テーブルの有効シート数（9 - 無効数）
+    validSeatCount(tableId) {
+      const t = this.tables.find(t => t.id === tableId);
+      const disabled = t ? (t.disabledSeats || []).length : 0;
+      return 9 - disabled;
+    },
+
     isSeatOccupied(tableId, seat, excludeId) {
       if (!tableId) return false;
       const tid = typeof tableId === 'string' ? parseInt(tableId) : tableId;
       return this.players.some(p => p.tableId === tid && p.seatNum === seat && p.id !== excludeId && p.status !== 'bust');
     },
 
-    // テーブルの空きシートをランダムに1つ返す
+    // テーブルの空きシートをランダムに1つ返す（無効シート除外）
     randomFreeSeat(tableId, excludePlayerId) {
       const occupied = this.players
         .filter(p => p.tableId === tableId && p.status !== 'bust' && p.id !== excludePlayerId)
         .map(p => p.seatNum);
-      const free = [1,2,3,4,5,6,7,8,9].filter(s => !occupied.includes(s));
+      const t = this.tables.find(t => t.id === tableId);
+      const disabled = t ? (t.disabledSeats || []) : [];
+      const free = [1,2,3,4,5,6,7,8,9].filter(s => !occupied.includes(s) && !disabled.includes(s));
       if (!free.length) return null;
       return free[Math.floor(Math.random() * free.length)];
     },
