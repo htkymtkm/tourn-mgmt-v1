@@ -669,7 +669,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
               @change="save()"
               style="background:#f6f7f4; border:1px solid #e0e5db; border-radius:6px; padding:2px 6px; font-size:11px; color:#627564; outline:none; -webkit-appearance:none; appearance:none;"
             >
-              <option v-for="n in [6,7,8,9]" :key="n" :value="n">{{ n }}人</option>
+              <option v-for="n in [2,3,4,5,6,7,8,9,10]" :key="n" :value="n">{{ n }}人</option>
             </select>
             <div class="table-card-count">{{ seatedCount(table.id) }}/{{ validSeatCount(table.id) }}</div>
           </div>
@@ -748,16 +748,24 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
         <span class="remove-chevron" :class="{ open: tablesPanelOpen }">▼</span>
       </div>
       <div v-show="tablesPanelOpen" style="margin-top:12px;">
-        <div class="input-row">
-          <input type="number" v-model.number="tableCountInput" placeholder="Number of tables" min="1" max="26" style="width:auto; flex:1;">
-          <select v-model.number="defaultMaxSeats" style="background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:10px 12px; font-size:14px; color:#1a2a1c; outline:none; -webkit-appearance:none; appearance:none;">
-            <option v-for="n in [6,7,8,9]" :key="n" :value="n">{{ n }}人</option>
+        <!-- Add Table row -->
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <select v-model.number="defaultMaxSeats" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:10px 12px; font-size:14px; color:#1a2a1c; outline:none; -webkit-appearance:none; appearance:none;">
+            <option v-for="n in [2,3,4,5,6,7,8,9,10]" :key="n" :value="n">{{ n }}人</option>
           </select>
-          <button class="btn btn-green" @click="setTables">Set</button>
+          <button class="btn btn-green" @click="addOneTable">+ Add Table</button>
         </div>
-        <p v-if="tables.length > 0" style="font-size:12px; color:#627564;">
-          {{ tables.map(t => 'TABLE ' + t.label + '(' + t.maxSeats + ')').join(', ') }}
-        </p>
+        <!-- Table list -->
+        <div v-if="tables.length === 0" style="font-size:13px; color:#9aab9c;">No tables yet.</div>
+        <div
+          v-for="t in tables"
+          :key="t.id"
+          style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #e0e5db;"
+        >
+          <div style="flex:1; font-size:14px; font-weight:700; color:#2e7d44;">TABLE {{ t.label }}</div>
+          <div style="font-size:13px; color:#627564;">{{ t.maxSeats }}人</div>
+          <button class="btn btn-ghost btn-sm" style="color:#b53a2e; border-color:#f0c8c4; padding:5px 10px;" @click="removeTable(t.id)">Delete</button>
+        </div>
       </div>
     </div>
 
@@ -1071,6 +1079,7 @@ createApp({
       showResetConfirm: false,
       tableCountInput: 2,
       defaultMaxSeats: 9,
+      showClearTablesConfirm: false,
 
       // Tables & Seats
       tables: [],
@@ -1285,41 +1294,41 @@ createApp({
       this.closeModal();
     },
 
-    /* ---- Tables Setup ---- */
-    setTables() {
-      const n = Math.min(Math.max(this.tableCountInput || 1, 1), 26);
-      const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-      // 既存テーブルのラベルを取得
-      const existingLabels = this.tables.map(t => t.label);
-
-      // 必要な数になるまで、使われていないラベルを順番に追加
-      const allLabels = labels.split('');
-      for (const label of allLabels) {
-        if (this.tables.length >= n) break;
-        if (!existingLabels.includes(label)) {
-          this.tables.push({ id: Date.now() + Math.random(), label, disabledSeats: [], maxSeats: this.defaultMaxSeats });
-        }
-      }
-
-      // 超過分を削除（後ろから）
-      if (this.tables.length > n) {
-        // 削除されるテーブルのプレイヤーを解放
-        const removed = this.tables.slice(n);
-        const removedIds = removed.map(t => t.id);
-        this.players.forEach(p => {
-          if (removedIds.includes(p.tableId)) {
-            p.tableId = null; p.seatNum = null;
-          }
-        });
-        this.tables = this.tables.slice(0, n);
-      }
-
-      // ラベルのアルファベット順にソート
-      this.tables.sort((a, b) => a.label.localeCompare(b.label));
-
+    clearTables() {
+      this.players.forEach(p => { p.tableId = null; p.seatNum = null; p.seatLocked = false; });
+      this.tables = [];
+      this.showClearTablesConfirm = false;
       this.save();
-      this.showToast(`${n} table(s) set.`);
+      this.showToast('All tables cleared.');
+    },
+
+    /* ---- Tables Setup ---- */
+    addOneTable() {
+      const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const usedLabels = this.tables.map(t => t.label);
+      // 使われていない最初のラベルを選ぶ
+      const label = labels.split('').find(l => !usedLabels.includes(l));
+      if (!label) { this.showToast('Maximum 26 tables reached.'); return; }
+      this.tables.push({
+        id: Date.now() + Math.random(),
+        label,
+        disabledSeats: [],
+        maxSeats: this.defaultMaxSeats,
+      });
+      // アルファベット順にソート
+      this.tables.sort((a, b) => a.label.localeCompare(b.label));
+      this.save();
+      this.showToast(`TABLE ${label} added (${this.defaultMaxSeats}人).`);
+    },
+
+    removeTable(tableId) {
+      // そのテーブルのプレイヤーを解放
+      this.players.forEach(p => {
+        if (p.tableId === tableId) { p.tableId = null; p.seatNum = null; p.seatLocked = false; }
+      });
+      this.tables = this.tables.filter(t => t.id !== tableId);
+      this.save();
+      this.showToast('Table removed.');
     },
 
     /* ---- Seat disable ---- */
