@@ -640,20 +640,16 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
   <div class="content" v-show="currentTab === 'seats'">
 
     <!-- Buttons -->
-    <div style="margin-bottom:12px;">
-      <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button class="btn btn-ghost btn-sm" @click="requestAssignSeats" style="font-size:11px; color:#627564;">
-          All Reassign Seats
-        </button>
-        <button class="btn btn-ghost btn-sm" @click="resetSeatsConfirmOpen = true" style="font-size:11px; color:#e07070; border-color:#f0c8c4;">
-          Reset Seats
-        </button>
-      </div>
-      <div>
-        <button class="btn btn-ghost btn-sm" @click="assignSeatModalOpen = true" style="font-size:11px; color:#2e7d44; border-color:#b8d9be;">
-          Assign Seat
-        </button>
-      </div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <button class="btn btn-ghost btn-sm" @click="assignSeatModalOpen = true" style="font-size:11px; color:#2e7d44; border-color:#b8d9be; flex:1;">
+        Assign Seat
+      </button>
+      <button class="btn btn-ghost btn-sm" @click="requestAssignSeats" style="font-size:11px; color:#627564; flex:1;">
+        All Reassign
+      </button>
+      <button class="btn btn-ghost btn-sm" @click="resetSeatsConfirmOpen = true" style="font-size:11px; color:#e07070; border-color:#f0c8c4; flex:1;">
+        Reset Seats
+      </button>
     </div>
 
     <!-- No tables -->
