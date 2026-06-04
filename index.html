@@ -639,14 +639,19 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
   <!-- ===== Seats Tab ===== -->
   <div class="content" v-show="currentTab === 'seats'">
 
-    <!-- Assign button -->
+    <!-- Buttons -->
     <div style="margin-bottom:12px;">
-      <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
         <button class="btn btn-ghost btn-sm" @click="requestAssignSeats" style="font-size:11px; color:#627564;">
-          Assign Seats
+          All Reassign Seats
         </button>
         <button class="btn btn-ghost btn-sm" @click="resetSeatsConfirmOpen = true" style="font-size:11px; color:#e07070; border-color:#f0c8c4;">
           Reset Seats
+        </button>
+      </div>
+      <div>
+        <button class="btn btn-ghost btn-sm" @click="assignSeatModalOpen = true" style="font-size:11px; color:#2e7d44; border-color:#b8d9be;">
+          Assign Seat
         </button>
       </div>
     </div>
@@ -931,6 +936,63 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
     </div>
   </div>
 
+  <!-- ===== Assign Seat Modal ===== -->
+  <div class="modal-overlay" :class="{ open: assignSeatModalOpen }" @click.self="closeAssignSeatModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-player-name">Assign Seat</div>
+
+      <!-- Step 1: Select Player -->
+      <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">
+        Step 1 — Select Player
+      </div>
+      <div v-if="unseatedActivePlayers.length === 0" style="font-size:13px; color:#9aab9c; padding:8px 0; margin-bottom:12px;">
+        No unseated players.
+      </div>
+      <div v-else style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+        <button
+          v-for="p in unseatedActivePlayers"
+          :key="p.id"
+          class="btn btn-sm"
+          :class="assignSeatSelectedPlayer && assignSeatSelectedPlayer.id === p.id ? 'btn-green' : 'btn-ghost'"
+          style="text-align:left; justify-content:flex-start;"
+          @click="assignSeatSelectedPlayer = p; assignSeatTargetTableId = null"
+        >{{ p.name }}</button>
+      </div>
+
+      <!-- Step 2: Select Table (プレイヤー選択後に表示) -->
+      <template v-if="assignSeatSelectedPlayer">
+        <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#9aab9c; margin-bottom:6px;">
+          Step 2 — Select Table
+        </div>
+        <div class="btn-row" style="flex-wrap:wrap; margin-bottom:14px;">
+          <button
+            v-for="t in tables"
+            :key="t.id"
+            class="btn btn-sm"
+            :class="assignSeatTargetTableId === t.id ? 'btn-green' : 'btn-ghost'"
+            @click="assignSeatTargetTableId = t.id"
+          >
+            {{ t.label }}
+            <span style="font-size:10px; opacity:0.7; margin-left:3px;">({{ seatedCount(t.id) }}/{{ validSeatCount(t.id) }})</span>
+          </button>
+        </div>
+
+        <button
+          class="btn btn-green btn-full"
+          :disabled="!assignSeatTargetTableId"
+          :style="!assignSeatTargetTableId ? 'opacity:0.4' : ''"
+          @click="doAssignSeatToTable"
+          style="margin-bottom:8px;"
+        >
+          Assign {{ assignSeatSelectedPlayer.name }} → TABLE {{ assignSeatTargetTableId ? tableLabel(assignSeatTargetTableId) : '...' }}
+        </button>
+      </template>
+
+      <button class="btn btn-ghost btn-full" @click="closeAssignSeatModal">Close</button>
+    </div>
+  </div>
+
   <!-- ===== Reset Seats Confirm Modal ===== -->
   <div class="modal-overlay" :class="{ open: resetSeatsConfirmOpen }" @click.self="resetSeatsConfirmOpen = false">
     <div class="modal">
@@ -1027,6 +1089,11 @@ createApp({
 
       // Reset seats confirm
       resetSeatsConfirmOpen: false,
+
+      // Assign seat modal
+      assignSeatModalOpen: false,
+      assignSeatTargetTableId: null,
+      assignSeatSelectedPlayer: null,
 
       // Break preview
       breakPreviewOpen: false,
@@ -1385,6 +1452,36 @@ createApp({
       this.save();
       this.closeSeatModal();
       this.showToast(`${player.name} → ${tLabel}-${seat}`);
+    },
+
+    /* ---- Assign Seat (1人ずつ: プレイヤー選択 → テーブル選択 → 配置) ---- */
+    closeAssignSeatModal() {
+      this.assignSeatModalOpen = false;
+      this.assignSeatSelectedPlayer = null;
+      this.assignSeatTargetTableId = null;
+    },
+
+    doAssignSeatToTable() {
+      const player = this.assignSeatSelectedPlayer;
+      const tableId = this.assignSeatTargetTableId;
+      if (!player || !tableId) return;
+
+      const seat = this.randomFreeSeat(tableId, player.id);
+      if (seat === null) {
+        this.showToast(`No free seats at TABLE ${this.tableLabel(tableId)}.`);
+        return;
+      }
+
+      player.tableId = tableId;
+      player.seatNum = seat;
+      this.save();
+
+      const tLabel = this.tableLabel(tableId);
+      this.showToast(`${player.name} → ${tLabel}-${seat}`);
+
+      // 次のプレイヤーへリセット（モーダルは開いたまま）
+      this.assignSeatSelectedPlayer = null;
+      this.assignSeatTargetTableId = null;
     },
 
     /* ---- Reset Seats ---- */
