@@ -645,7 +645,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
         <button class="btn btn-ghost btn-sm" @click="requestAssignSeats" style="font-size:11px; color:#627564;">
           Assign Seats
         </button>
-        <button class="btn btn-ghost btn-sm" @click="resetSeats" style="font-size:11px; color:#e07070; border-color:#f0c8c4;">
+        <button class="btn btn-ghost btn-sm" @click="resetSeatsConfirmOpen = true" style="font-size:11px; color:#e07070; border-color:#f0c8c4;">
           Reset Seats
         </button>
       </div>
@@ -919,6 +919,19 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
     </div>
   </div>
 
+  <!-- ===== Reset Seats Confirm Modal ===== -->
+  <div class="modal-overlay" :class="{ open: resetSeatsConfirmOpen }" @click.self="resetSeatsConfirmOpen = false">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-player-name">Reset Seats</div>
+      <div class="modal-player-sub" style="margin-bottom:14px;">Remove all players from their seats? Locks will also be cleared.</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" @click="resetSeatsConfirmOpen = false">Cancel</button>
+        <button class="btn btn-red" @click="resetSeats">Reset</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Assign Confirm Modal ===== -->
   <div class="modal-overlay" :class="{ open: assignConfirmOpen }" @click.self="assignConfirmOpen = false">
     <div class="modal">
@@ -998,6 +1011,9 @@ createApp({
 
       // Assign confirm
       assignConfirmOpen: false,
+
+      // Reset seats confirm
+      resetSeatsConfirmOpen: false,
 
       // Break preview
       breakPreviewOpen: false,
@@ -1197,19 +1213,35 @@ createApp({
     setTables() {
       const n = Math.min(Math.max(this.tableCountInput || 1, 1), 26);
       const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      while (this.tables.length < n) {
-        const idx = this.tables.length;
-        this.tables.push({ id: idx + 1, label: labels[idx], disabledSeats: [] });
-      }
-      this.tables = this.tables.slice(0, n);
-      // disabledSeatsが未定義の既存テーブルに初期化
-      this.tables.forEach(t => { if (!t.disabledSeats) t.disabledSeats = []; });
-      const validIds = this.tables.map(t => t.id);
-      this.players.forEach(p => {
-        if (p.tableId && !validIds.includes(p.tableId)) {
-          p.tableId = null; p.seatNum = null;
+
+      // 既存テーブルのラベルを取得
+      const existingLabels = this.tables.map(t => t.label);
+
+      // 必要な数になるまで、使われていないラベルを順番に追加
+      const allLabels = labels.split('');
+      for (const label of allLabels) {
+        if (this.tables.length >= n) break;
+        if (!existingLabels.includes(label)) {
+          this.tables.push({ id: Date.now() + Math.random(), label, disabledSeats: [] });
         }
-      });
+      }
+
+      // 超過分を削除（後ろから）
+      if (this.tables.length > n) {
+        // 削除されるテーブルのプレイヤーを解放
+        const removed = this.tables.slice(n);
+        const removedIds = removed.map(t => t.id);
+        this.players.forEach(p => {
+          if (removedIds.includes(p.tableId)) {
+            p.tableId = null; p.seatNum = null;
+          }
+        });
+        this.tables = this.tables.slice(0, n);
+      }
+
+      // ラベルのアルファベット順にソート
+      this.tables.sort((a, b) => a.label.localeCompare(b.label));
+
       this.save();
       this.showToast(`${n} table(s) set.`);
     },
@@ -1346,6 +1378,7 @@ createApp({
         p.seatNum = null;
         p.seatLocked = false;
       });
+      this.resetSeatsConfirmOpen = false;
       this.save();
       this.showToast('All seats reset.');
     },
