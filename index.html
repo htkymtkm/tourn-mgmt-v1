@@ -580,31 +580,65 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
       <p>No players yet. Go to Settings to add players.</p>
     </div>
 
-    <!-- Player list -->
     <div v-else class="player-list">
 
-      <!-- Active players -->
-      <div
-        v-for="(p, i) in activePlayers"
-        :key="p.id"
-        class="player-item status-active"
-        @click="openModal(p)"
-      >
-        <div class="player-rank">{{ i + 1 }}</div>
-        <div class="player-info">
-          <div class="player-name">{{ p.name }}</div>
-          <div class="player-sub">
-            <span>Active</span>
-            <template v-if="p.ra > 0">
-              <span v-for="n in p.ra" :key="n" class="ra-pill">R/A</span>
-            </template>
-            <span v-if="p.memo" class="memo-text">{{ p.memo }}</span>
+      <!-- Unassigned section -->
+      <template v-if="unseatedActivePlayers.length > 0">
+        <div class="section-label" style="margin-top:0;">
+          Unassigned ({{ unseatedActivePlayers.length }})
+        </div>
+        <div
+          v-for="p in unseatedActivePlayers"
+          :key="p.id"
+          class="player-item status-active"
+          @click="openModal(p)"
+        >
+          <div class="player-rank" style="font-size:12px; color:#c0cac1;">N/A</div>
+          <div class="player-info">
+            <div class="player-name">{{ p.name }}</div>
+            <div class="player-sub">
+              <template v-if="p.ra > 0">
+                <span v-for="n in p.ra" :key="n" class="ra-pill">R/A</span>
+              </template>
+              <span v-if="p.memo" class="memo-text">{{ p.memo }}</span>
+            </div>
+          </div>
+          <div class="player-right">
+            <span class="status-tag tag-active">Playing</span>
           </div>
         </div>
-        <div class="player-right">
-          <span class="status-tag tag-active">Playing</span>
+      </template>
+
+      <!-- Table groups -->
+      <template v-for="group in playersByTable" :key="group.table.id">
+        <div class="section-label" style="margin-top:14px;">
+          TABLE {{ group.table.label }}
+          ({{ seatedCount(group.table.id) }}/{{ validSeatCount(group.table.id) }})
         </div>
-      </div>
+        <div
+          v-for="p in group.players"
+          :key="p.id"
+          class="player-item status-active"
+          @click="openModal(p)"
+        >
+          <div class="player-rank" style="font-size:12px; color:#2e7d44; font-family:'Bebas Neue',sans-serif; letter-spacing:1px;">
+            {{ group.table.label }}-{{ p.seatNum }}
+          </div>
+          <div class="player-info">
+            <div class="player-name">{{ p.name }}</div>
+            <div class="player-sub">
+              <template v-if="p.ra > 0">
+                <span v-for="n in p.ra" :key="n" class="ra-pill">R/A</span>
+              </template>
+              <span v-if="p.memo" class="memo-text">{{ p.memo }}</span>
+            </div>
+          </div>
+          <div class="player-right">
+            <span class="status-tag tag-active">Playing</span>
+            <span v-if="p.seatLocked" style="font-size:10px; color:#c9a84c;">LOCK</span>
+          </div>
+        </div>
+      </template>
 
       <!-- Bust section -->
       <template v-if="bustPlayers.length > 0">
@@ -1138,6 +1172,19 @@ createApp({
     unseatedActivePlayers() {
       return this.players.filter(p => p.status !== 'bust' && !p.tableId);
     },
+
+    // PLAYERSタブ用: テーブルごとにグループ化したアクティブプレイヤー
+    playersByTable() {
+      // テーブルごと: シート番号順にソート
+      const groups = this.tables.map(t => ({
+        table: t,
+        players: this.players
+          .filter(p => p.status !== 'bust' && p.tableId === t.id)
+          .slice()
+          .sort((a, b) => a.seatNum - b.seatNum),
+      })).filter(g => g.players.length > 0);
+      return groups;
+    },
   },
 
   watch: {
@@ -1631,15 +1678,31 @@ createApp({
         });
       } else {
         text += `\n[Active — ${active.length} players]\n`;
-        active.forEach((p, i) => {
+
+        // 未着席
+        const unassigned = active.filter(p => !p.tableId);
+        unassigned.forEach(p => {
           const memo = p.memo ? p.memo + '  ' : '';
-          text += `${i+1}/${total}  ${memo}${p.name}${raStr(p.ra)}\n`;
+          text += `N/A  ${memo}${p.name}${raStr(p.ra)}\n`;
         });
+
+        // テーブルごと・シート番号順
+        this.tables.forEach(t => {
+          const seated = active
+            .filter(p => p.tableId === t.id)
+            .slice()
+            .sort((a, b) => a.seatNum - b.seatNum);
+          seated.forEach(p => {
+            const seat = `${t.label}-${p.seatNum}`;
+            const memo = p.memo ? p.memo + '  ' : '';
+            text += `${seat}  ${memo}${p.name}${raStr(p.ra)}\n`;
+          });
+        });
+
         text += `\n[Busted — ${bust.length} players]\n`;
         bust.forEach(p => {
           const rank = this.bustRank(p);
-          const memo = p.memo ? p.memo + '  ' : '';
-          text += `${rank}/${total}  ${memo}${p.name}${raStr(p.ra)}\n`;
+          text += `${rank}/${total}  ${p.name}${raStr(p.ra)}\n`;
         });
       }
 
