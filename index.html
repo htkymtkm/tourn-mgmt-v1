@@ -1140,6 +1140,17 @@ createApp({
     },
   },
 
+  watch: {
+    players: {
+      deep: true,
+      handler() { this.save(); },
+    },
+    tables: {
+      deep: true,
+      handler() { this.save(); },
+    },
+  },
+
   methods: {
 
     /* ---- Storage ---- */
@@ -1194,7 +1205,6 @@ createApp({
       });
 
       this.newPlayerName = '';
-      this.save();
       this.showToast(`${name} added.`);
     },
 
@@ -1217,7 +1227,6 @@ createApp({
       });
 
       this.closeBulkModal();
-      this.save();
       this.showToast(`${names.length} player${names.length > 1 ? 's' : ''} added.`);
     },
 
@@ -1238,7 +1247,6 @@ createApp({
       }
 
       this.players.splice(idx, 1);
-      this.save();
       this.showToast(`${name} removed.`);
     },
 
@@ -1258,7 +1266,6 @@ createApp({
     changeRA(delta) {
       if (!this.selectedPlayer) return;
       this.selectedPlayer.ra = Math.max(0, (this.selectedPlayer.ra || 0) + delta);
-      this.save();
     },
 
     /* ---- Bust ---- */
@@ -1272,7 +1279,6 @@ createApp({
       p.seatNum   = null;
       p.seatLocked = false;
       const rank = this.bustRank(p);
-      this.save();
       this.showToast(`${p.name} busted in ${rank}${this.ordinal(rank)} place.`);
       this.closeModal();
     },
@@ -1289,7 +1295,6 @@ createApp({
       });
       p.status = 'active';
       p.bustOrder = null;
-      this.save();
       this.showToast(`${p.name} has been revived.`);
       this.closeModal();
     },
@@ -1298,7 +1303,6 @@ createApp({
       this.players.forEach(p => { p.tableId = null; p.seatNum = null; p.seatLocked = false; });
       this.tables = [];
       this.showClearTablesConfirm = false;
-      this.save();
       this.showToast('All tables cleared.');
     },
 
@@ -1317,7 +1321,6 @@ createApp({
       });
       // アルファベット順にソート
       this.tables.sort((a, b) => a.label.localeCompare(b.label));
-      this.save();
       this.showToast(`TABLE ${label} added (${this.defaultMaxSeats}人).`);
     },
 
@@ -1327,7 +1330,6 @@ createApp({
         if (p.tableId === tableId) { p.tableId = null; p.seatNum = null; p.seatLocked = false; }
       });
       this.tables = this.tables.filter(t => t.id !== tableId);
-      this.save();
       this.showToast('Table removed.');
     },
 
@@ -1352,7 +1354,6 @@ createApp({
         t.disabledSeats.splice(idx, 1);
         this.showToast(`Seat ${t.label}-${seat} enabled.`);
       }
-      this.save();
     },
 
     /* ---- Seat helpers ---- */
@@ -1410,13 +1411,11 @@ createApp({
       player.seatLocked = !player.seatLocked;
       // seatModalData.playerを更新
       if (this.seatModalData) this.seatModalData.player = player;
-      this.save();
     },
 
     assignToSeat(player, tableId, seat) {
       player.tableId = tableId;
       player.seatNum = seat;
-      this.save();
       this.closeSeatModal();
       const tLabel = this.tables.find(t => t.id === tableId)?.label || '';
       this.showToast(`${player.name} → ${tLabel}-${seat}`);
@@ -1426,7 +1425,6 @@ createApp({
       player.tableId = null;
       player.seatNum = null;
       player.seatLocked = false;
-      this.save();
       this.closeSeatModal();
       this.showToast(`${player.name} removed from seat.`);
     },
@@ -1437,7 +1435,6 @@ createApp({
       const tLabel = this.tables.find(t => t.id === tableId)?.label || '';
       player.tableId = tableId;
       player.seatNum = seat;
-      this.save();
       this.closeSeatModal();
       this.showToast(`${player.name} → ${tLabel}-${seat}`);
     },
@@ -1454,7 +1451,6 @@ createApp({
       const tLabel = this.tables.find(t => t.id === tid)?.label || '';
       player.tableId = tid;
       player.seatNum = seat;
-      this.save();
       this.closeSeatModal();
       this.showToast(`${player.name} → ${tLabel}-${seat}`);
     },
@@ -1479,7 +1475,6 @@ createApp({
 
       player.tableId = tableId;
       player.seatNum = seat;
-      this.save();
 
       const tLabel = this.tableLabel(tableId);
       this.showToast(`${player.name} → ${tLabel}-${seat}`);
@@ -1497,7 +1492,6 @@ createApp({
         p.seatLocked = false;
       });
       this.resetSeatsConfirmOpen = false;
-      this.save();
       this.showToast('All seats reset.');
     },
 
@@ -1543,7 +1537,6 @@ createApp({
         player.seatNum = seat;
       });
 
-      this.save();
       this.showToast('Seats assigned.');
     },
 
@@ -1595,7 +1588,6 @@ createApp({
       this.tables = this.tables.filter(t => t.id !== this.breakPreviewData.tableId);
       this.breakPreviewOpen = false;
       this.breakPreviewData = null;
-      this.save();
       this.showToast('Table broken.');
     },
 
@@ -1603,7 +1595,6 @@ createApp({
     saveMemo() {
       if (!this.selectedPlayer) return;
       this.selectedPlayer.memo = this.memoInput;
-      this.save();
     },
 
     /* ---- Reset ---- */
@@ -1612,7 +1603,6 @@ createApp({
       this.tables = [];
       this.nextId = 1;
       this.showResetConfirm = false;
-      this.save();
       this.showToast('Tournament reset.');
     },
 
