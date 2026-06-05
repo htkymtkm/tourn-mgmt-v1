@@ -669,7 +669,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
               @change="save()"
               style="background:#f6f7f4; border:1px solid #e0e5db; border-radius:6px; padding:2px 6px; font-size:11px; color:#627564; outline:none; -webkit-appearance:none; appearance:none;"
             >
-              <option v-for="n in [2,3,4,5,6,7,8,9,10]" :key="n" :value="n">{{ n }}人</option>
+              <option v-for="n in [2,3,4,5,6,7,8,9,10]" :key="n" :value="n">{{ n }}max</option>
             </select>
             <div class="table-card-count">{{ seatedCount(table.id) }}/{{ validSeatCount(table.id) }}</div>
           </div>
@@ -751,7 +751,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
         <!-- Add Table row -->
         <div style="display:flex; gap:8px; margin-bottom:12px;">
           <select v-model.number="defaultMaxSeats" style="flex:1; background:#f6f7f4; border:1px solid #e0e5db; border-radius:8px; padding:10px 12px; font-size:14px; color:#1a2a1c; outline:none; -webkit-appearance:none; appearance:none;">
-            <option v-for="n in [2,3,4,5,6,7,8,9,10]" :key="n" :value="n">{{ n }}人</option>
+            <option v-for="n in [2,3,4,5,6,7,8,9,10]" :key="n" :value="n">{{ n }} Players</option>
           </select>
           <button class="btn btn-green" @click="addOneTable">+ Add Table</button>
         </div>
@@ -763,7 +763,7 @@ hr { border: none; border-top: 1px solid #e0e5db; margin: 14px 0; }
           style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #e0e5db;"
         >
           <div style="flex:1; font-size:14px; font-weight:700; color:#2e7d44;">TABLE {{ t.label }}</div>
-          <div style="font-size:13px; color:#627564;">{{ t.maxSeats }}人</div>
+          <div style="font-size:13px; color:#627564;">{{ t.maxSeats }} Players</div>
           <button class="btn btn-ghost btn-sm" style="color:#b53a2e; border-color:#f0c8c4; padding:5px 10px;" @click="removeTable(t.id)">Delete</button>
         </div>
       </div>
